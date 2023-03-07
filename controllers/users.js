@@ -1,5 +1,6 @@
 const User = require('../models/user');
 const DataNotFoundError = require('../errors/DataNotFoundError');
+const DataValidationError = require('../errors/DataValidationError');
 const {
   OK, CREATED, BAD_REQUEST, INTERNAL_SERVER_ERROR,
 } = require('../utils/constants');
@@ -20,11 +21,11 @@ module.exports.getUserById = (req, res) => {
   const { userId } = req.params;
   User.findById(userId)
     .orFail(() => {
-      throw new DataNotFoundError();
+      throw new DataValidationError();
     })
     .then((user) => res.status(OK).send({ data: user }))
     .catch((err) => {
-      if (err.name === 'DataNotFoundError') {
+      if (err.name === 'DataValidationError') {
         res.status(err.status).send(
           { message: err.message },
         );

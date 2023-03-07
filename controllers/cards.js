@@ -42,7 +42,6 @@ module.exports.deleteCard = (req, res) => {
     .orFail(() => {
       throw new DataNotFoundError();
     })
-    .populate(['owner', 'likes'])
     .then((card) => res.status(OK).send({ data: card, message: 'Карточка успешно удалена' }))
     .catch((err) => {
       if (err.name === 'DataNotFoundError') {
