@@ -1,7 +1,7 @@
 const Card = require('../models/card');
 const DataNotFoundError = require('../errors/DataNotFoundError');
 const {
-  OK, CREATED, BAD_REQUEST, NOT_FOUND, INTERNAL_SERVER_ERROR,
+  OK, CREATED, BAD_REQUEST, INTERNAL_SERVER_ERROR,
 } = require('../utils/constants');
 
 // GET /cards — возвращает все карточки
@@ -37,65 +37,82 @@ module.exports.createCard = (req, res) => {
 
 // DELETE /cards/:cardId — удаляет карточку по идентификатору
 module.exports.deleteCard = (req, res) => {
-  Card.findByIdAndRemove(req.params.cardId)
-    .then((card) => res.status(OK).send({ data: card }))
+  const { cardId } = req.params;
+  Card.findByIdAndRemove(cardId)
+    .orFail(() => {
+      throw new DataNotFoundError();
+    })
+    .populate(['owner', 'likes'])
+    .then((card) => res.status(OK).send({ data: card, message: 'Карточка успешно удалена' }))
     .catch((err) => {
-      res.status(NOT_FOUND).send(
-        { message: `Запрашиваемые данные не найдены: ${err.message}` },
-      );
+      if (err.name === 'DataNotFoundError') {
+        res.status(err.status).send(
+          { message: err.message },
+        );
+      } else {
+        res.status(INTERNAL_SERVER_ERROR).send(
+          { message: `Ошибка при получении данных от сервера: ${err.message}` },
+        );
+      }
     });
 };
 
 // PUT /cards/:cardId/likes — поставить лайк карточке
-module.exports.likeCard = (req, res) => Card.findByIdAndUpdate(
-  req.params.cardId,
-  { $addToSet: { likes: req.user._id } }, // добавить _id в массив, если его там нет
-  { new: true },
-)
-  .orFail(() => {
-    throw new DataNotFoundError();
-  })
-  .populate('owner')
-  .then((card) => res.status(OK).send({ data: card }))
-  .catch((err) => {
-    if (err.name === 'DataNotFoundError') {
-      res.status(err.status).send(
-        { message: err.message },
-      );
-    } else if (err.name === 'ValidationError') {
-      res.status(BAD_REQUEST).send(
-        { message: `Переданы некорректные данные: ${err.message}` },
-      );
-    } else {
-      res.status(INTERNAL_SERVER_ERROR).send(
-        { message: `Ошибка при получении данных от сервера: ${err.message}` },
-      );
-    }
-  });
+module.exports.likeCard = (req, res) => {
+  const { cardId } = req.params;
+  Card.findByIdAndUpdate(
+    cardId,
+    { $addToSet: { likes: req.user._id } }, // добавить _id в массив, если его там нет
+    { new: true },
+  )
+    .orFail(() => {
+      throw new DataNotFoundError();
+    })
+    .populate('owner')
+    .then((card) => res.status(OK).send({ data: card }))
+    .catch((err) => {
+      if (err.name === 'DataNotFoundError') {
+        res.status(err.status).send(
+          { message: err.message },
+        );
+      } else if (err.name === 'ValidationError') {
+        res.status(BAD_REQUEST).send(
+          { message: `Переданы некорректные данные: ${err.message}` },
+        );
+      } else {
+        res.status(INTERNAL_SERVER_ERROR).send(
+          { message: `Ошибка при получении данных от сервера: ${err.message}` },
+        );
+      }
+    });
+};
 
 // DELETE /cards/:cardId/likes — убрать лайк с карточки
-module.exports.dislikeCard = (req, res) => Card.findByIdAndUpdate(
-  req.params.cardId,
-  { $pull: { likes: req.user._id } }, // убрать _id из массива
-  { new: true },
-)
-  .orFail(() => {
-    throw new DataNotFoundError();
-  })
-  .populate(['owner', 'likes'])
-  .then((card) => res.status(OK).send({ data: card }))
-  .catch((err) => {
-    if (err.name === 'DataNotFoundError') {
-      res.status(err.status).send(
-        { message: err.message },
-      );
-    } else if (err.name === 'ValidationError') {
-      res.status(BAD_REQUEST).send(
-        { message: `Переданы некорректные данные: ${err.message}` },
-      );
-    } else {
-      res.status(INTERNAL_SERVER_ERROR).send(
-        { message: `Ошибка при получении данных от сервера: ${err.message}` },
-      );
-    }
-  });
+module.exports.dislikeCard = (req, res) => {
+  const { cardId } = req.params;
+  Card.findByIdAndUpdate(
+    cardId,
+    { $pull: { likes: req.user._id } }, // убрать _id из массива
+    { new: true },
+  )
+    .orFail(() => {
+      throw new DataNotFoundError();
+    })
+    .populate(['owner', 'likes'])
+    .then((card) => res.status(OK).send({ data: card }))
+    .catch((err) => {
+      if (err.name === 'DataNotFoundError') {
+        res.status(err.status).send(
+          { message: err.message },
+        );
+      } else if (err.name === 'ValidationError') {
+        res.status(BAD_REQUEST).send(
+          { message: `Переданы некорректные данные: ${err.message}` },
+        );
+      } else {
+        res.status(INTERNAL_SERVER_ERROR).send(
+          { message: `Ошибка при получении данных от сервера: ${err.message}` },
+        );
+      }
+    });
+};

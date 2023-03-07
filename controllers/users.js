@@ -17,7 +17,8 @@ module.exports.getUsers = (req, res) => {
 
 // GET /users/:userId - возвращает пользователя по _id
 module.exports.getUserById = (req, res) => {
-  User.findById(req.params.userId)
+  const { userId } = req.params;
+  User.findById(userId)
     .orFail(() => {
       throw new DataNotFoundError();
     })
