@@ -1,6 +1,7 @@
+// const mongoose = require('mongoose');
 const User = require('../models/user');
 const DataNotFoundError = require('../errors/DataNotFoundError');
-const DataValidationError = require('../errors/DataValidationError');
+// const DataValidationError = require('../errors/DataValidationError');
 const {
   OK, CREATED, BAD_REQUEST, INTERNAL_SERVER_ERROR,
 } = require('../utils/constants');
@@ -19,20 +20,32 @@ module.exports.getUsers = (req, res) => {
 // GET /users/:userId - возвращает пользователя по _id
 module.exports.getUserById = (req, res) => {
   const { userId } = req.params;
+
   User.findById(userId)
     .orFail(() => {
-      throw new DataValidationError();
+      const error = new Error('Запрашиваемые данные не найдены');
+      error.statusCode = 404;
+      error.name = 'DataNotFoundError';
+      console.log('консоль лог в orFail');
+      throw error;
     })
     .then((user) => res.status(OK).send({ data: user }))
     .catch((err) => {
-      if (err.name === 'DataValidationError') {
-        res.status(err.status).send(
+      if (err.name === 'DataNotFoundError') {
+        res.status(err.statusCode).send(
           { message: err.message },
         );
+        console.log('консоль лог в if 404');
+      } else if (err.name === 'CastError') {
+        res.status(err.statusCode).send(
+          { message: `Переданы некорректные данные: ${err.message}` },
+        );
+        console.log('консоль лог в if 400');
       } else {
         res.status(INTERNAL_SERVER_ERROR).send(
           { message: `Ошибка при получении данных от сервера: ${err.message}` },
         );
+        console.log('консоль лог в if 500');
       }
     });
 };

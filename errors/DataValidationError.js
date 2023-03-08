@@ -1,11 +1,12 @@
-const ApplicationError = require('./ApplicationError');
 const {
   BAD_REQUEST,
 } = require('../utils/constants');
 
-class DataValidationError extends ApplicationError {
-  constructor() {
-    super(BAD_REQUEST, 'Переданы некорректные данные');
+class DataValidationError extends Error {
+  constructor(message) {
+    super(message);
+    this.statusCode = BAD_REQUEST;
+    this.name = this.constructor.name;
   }
 }
 
