@@ -57,9 +57,8 @@ module.exports.deleteCard = (req, res) => {
 
 // PUT /cards/:cardId/likes — поставить лайк карточке
 module.exports.likeCard = (req, res) => {
-  const { cardId } = req.params;
   Card.findByIdAndUpdate(
-    cardId,
+    req.params.cardId,
     { $addToSet: { likes: req.user._id } }, // добавить _id в массив, если его там нет
     { new: true },
   )
@@ -85,23 +84,20 @@ module.exports.likeCard = (req, res) => {
 
 // DELETE /cards/:cardId/likes — убрать лайк с карточки
 module.exports.dislikeCard = (req, res) => {
-  const { cardId } = req.params;
   Card.findByIdAndUpdate(
-    cardId,
+    req.params.cardId,
     { $pull: { likes: req.user._id } }, // убрать _id из массива
     { new: true },
   )
     .orFail(() => {
-      throw new DataNotFoundError();
+      throw new DataNotFoundError('Запрашиваемая карточка не найдена');
     })
     .populate(['owner', 'likes'])
     .then((card) => res.status(OK).send({ data: card }))
     .catch((err) => {
       if (err.name === 'DataNotFoundError') {
-        res.status(err.status).send(
-          { message: err.message },
-        );
-      } else if (err.name === 'ValidationError') {
+        res.status(err.statusCode).send({ message: err.message });
+      } else if (err.name === 'CastError') {
         res.status(BAD_REQUEST).send(
           { message: `Переданы некорректные данные: ${err.message}` },
         );
