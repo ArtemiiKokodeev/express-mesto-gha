@@ -19,7 +19,6 @@ module.exports.getCards = (req, res) => {
 // POST /cards — создаёт карточку
 module.exports.createCard = (req, res) => {
   const { name, link } = req.body;
-
   Card.create({ name, link, owner: req.user._id })
     .then((card) => res.status(CREATED).send({ data: card }))
     .catch((err) => {
@@ -65,16 +64,14 @@ module.exports.likeCard = (req, res) => {
     { new: true },
   )
     .orFail(() => {
-      throw new DataNotFoundError();
+      throw new DataNotFoundError('Запрашиваемая карточка не найдена');
     })
     .populate('owner')
     .then((card) => res.status(OK).send({ data: card }))
     .catch((err) => {
       if (err.name === 'DataNotFoundError') {
-        res.status(err.status).send(
-          { message: err.message },
-        );
-      } else if (err.name === 'ValidationError') {
+        res.status(err.statusCode).send({ message: err.message });
+      } else if (err.name === 'CastError') {
         res.status(BAD_REQUEST).send(
           { message: `Переданы некорректные данные: ${err.message}` },
         );

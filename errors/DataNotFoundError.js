@@ -1,4 +1,3 @@
-// const ApplicationError = require('./ApplicationError');
 const { NOT_FOUND } = require('../utils/constants');
 
 class DataNotFoundError extends Error {
