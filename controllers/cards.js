@@ -36,16 +36,19 @@ module.exports.createCard = (req, res) => {
 
 // DELETE /cards/:cardId — удаляет карточку по идентификатору
 module.exports.deleteCard = (req, res) => {
-  const { cardId } = req.params;
-  Card.findByIdAndRemove(cardId)
+  Card.findByIdAndRemove(req.params.cardId)
     .orFail(() => {
-      throw new DataNotFoundError();
+      throw new DataNotFoundError('Запрашиваемая карточка не найдена');
     })
     .then((card) => res.status(OK).send({ data: card, message: 'Карточка успешно удалена' }))
     .catch((err) => {
       if (err.name === 'DataNotFoundError') {
-        res.status(err.status).send(
+        res.status(err.statusCode).send(
           { message: err.message },
+        );
+      } else if (err.name === 'CastError') {
+        res.status(BAD_REQUEST).send(
+          { message: `Переданы некорректные данные: ${err.message}` },
         );
       } else {
         res.status(INTERNAL_SERVER_ERROR).send(
