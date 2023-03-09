@@ -4,6 +4,8 @@ const bodyParser = require('body-parser');
 const usersRouter = require('./routes/users');
 const cardsRouter = require('./routes/cards');
 
+mongoose.set('strictQuery', false);
+
 const { NOT_FOUND } = require('./utils/constants');
 
 const { PORT = 3000 } = process.env;

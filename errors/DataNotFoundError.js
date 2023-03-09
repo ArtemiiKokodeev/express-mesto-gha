@@ -4,8 +4,10 @@ const { NOT_FOUND } = require('../utils/constants');
 class DataNotFoundError extends Error {
   constructor(message) {
     super(message);
-    this.status = NOT_FOUND;
+    this.statusCode = NOT_FOUND;
     this.name = this.constructor.name;
+
+    Error.captureStackTrace(this, this.constructor);
   }
 }
 

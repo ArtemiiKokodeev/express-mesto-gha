@@ -1,7 +1,5 @@
-// const mongoose = require('mongoose');
 const User = require('../models/user');
 const DataNotFoundError = require('../errors/DataNotFoundError');
-// const DataValidationError = require('../errors/DataValidationError');
 const {
   OK, CREATED, BAD_REQUEST, INTERNAL_SERVER_ERROR,
 } = require('../utils/constants');
@@ -19,33 +17,22 @@ module.exports.getUsers = (req, res) => {
 
 // GET /users/:userId - возвращает пользователя по _id
 module.exports.getUserById = (req, res) => {
-  const { userId } = req.params;
-
-  User.findById(userId)
+  User.findById(req.params.userId)
     .orFail(() => {
-      const error = new Error('Запрашиваемые данные не найдены');
-      error.statusCode = 404;
-      error.name = 'DataNotFoundError';
-      console.log('консоль лог в orFail');
-      throw error;
+      throw new DataNotFoundError('Запрашиваемый пользователь не найден');
     })
     .then((user) => res.status(OK).send({ data: user }))
     .catch((err) => {
       if (err.name === 'DataNotFoundError') {
-        res.status(err.statusCode).send(
-          { message: err.message },
-        );
-        console.log('консоль лог в if 404');
+        res.status(err.statusCode).send({ message: err.message });
       } else if (err.name === 'CastError') {
-        res.status(err.statusCode).send(
+        res.status(BAD_REQUEST).send(
           { message: `Переданы некорректные данные: ${err.message}` },
         );
-        console.log('консоль лог в if 400');
       } else {
         res.status(INTERNAL_SERVER_ERROR).send(
           { message: `Ошибка при получении данных от сервера: ${err.message}` },
         );
-        console.log('консоль лог в if 500');
       }
     });
 };
@@ -53,7 +40,6 @@ module.exports.getUserById = (req, res) => {
 // POST /users — создаёт пользователя
 module.exports.createUser = (req, res) => {
   const { name, about, avatar } = req.body;
-
   User.create({ name, about, avatar })
     .then((user) => res.status(CREATED).send({ data: user }))
     .catch((err) => {
@@ -73,9 +59,7 @@ module.exports.createUser = (req, res) => {
 module.exports.updateUserInfo = (req, res) => {
   const { name, about } = req.body;
   if (!name || !about) {
-    res.status(BAD_REQUEST).send(
-      { message: 'Данные переданы некорректно' },
-    );
+    res.status(BAD_REQUEST).send({ message: 'Данные переданы некорректно' });
     return;
   }
   User.findByIdAndUpdate(
@@ -84,17 +68,15 @@ module.exports.updateUserInfo = (req, res) => {
     { new: true, runValidators: true },
   )
     .orFail(() => {
-      throw new DataNotFoundError();
+      throw new DataNotFoundError('Запрашиваемый пользователь не найден');
     })
     .then((user) => res.status(OK).send({ data: user }))
     .catch((err) => {
       if (err.name === 'DataNotFoundError') {
-        res.status(err.status).send(
-          { message: err.message },
-        );
+        res.status(err.status).send({ message: err.message });
       } else if (err.name === 'ValidationError') {
         res.status(BAD_REQUEST).send(
-          { message: `Переданы некорректные данные: ${err.message}` },
+          { message: `Данные переданы некорректно: ${err.message}` },
         );
       } else {
         res.status(INTERNAL_SERVER_ERROR).send(
@@ -108,9 +90,7 @@ module.exports.updateUserInfo = (req, res) => {
 module.exports.updateUserAvatar = (req, res) => {
   const { avatar } = req.body;
   if (!avatar) {
-    res.status(BAD_REQUEST).send(
-      { message: 'Данные переданы некорректно' },
-    );
+    res.status(BAD_REQUEST).send({ message: 'Данные переданы некорректно' });
     return;
   }
   User.findByIdAndUpdate(
@@ -119,14 +99,12 @@ module.exports.updateUserAvatar = (req, res) => {
     { new: true, runValidators: true },
   )
     .orFail(() => {
-      throw new DataNotFoundError();
+      throw new DataNotFoundError('Запрашиваемый пользователь не найден');
     })
     .then((user) => res.status(OK).send({ data: user }))
     .catch((err) => {
       if (err.name === 'DataNotFoundError') {
-        res.status(err.status).send(
-          { message: err.message },
-        );
+        res.status(err.status).send({ message: err.message });
       } else if (err.name === 'ValidationError') {
         res.status(BAD_REQUEST).send(
           { message: `Переданы некорректные данные: ${err.message}` },
