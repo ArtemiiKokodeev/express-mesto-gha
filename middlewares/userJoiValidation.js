@@ -1,6 +1,6 @@
 const { celebrate, Joi } = require('celebrate');
 
-// проверка аватара через регулярное выражение:
+// проверка url аватара через регулярное выражение:
 const regex = /(ftp|http|https):\/\/.(www\.)?[a-z\-\d]+\.[\w\-.~:/?#[\]@!$&'()*+,;=]{1,}#?/i;
 
 // проверка полей при создании юзера
@@ -34,5 +34,12 @@ module.exports.updateUserInfoJoiValidation = celebrate({
 module.exports.updateUserAvatarJoiValidation = celebrate({
   body: Joi.object().keys({
     avatar: Joi.string().required().regex(regex),
+  }),
+});
+
+// проверка _id при возврате пользователя
+module.exports.userIdJoiValidation = celebrate({
+  params: Joi.object().keys({
+    userId: Joi.string().required().min(24).max(24),
   }),
 });
