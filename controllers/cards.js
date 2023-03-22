@@ -1,65 +1,42 @@
 const Card = require('../models/card');
 const DataNotFoundError = require('../errors/DataNotFoundError');
-const {
-  OK, CREATED, BAD_REQUEST, INTERNAL_SERVER_ERROR,
-} = require('../utils/constants');
+const ForbiddenError = require('../errors/ForbiddenError');
+const { OK, CREATED } = require('../utils/constants');
 
 // GET /cards — возвращает все карточки
-module.exports.getCards = (req, res) => {
+module.exports.getCards = (req, res, next) => {
   Card.find({})
-    .populate('owner', 'likes')
     .then((cards) => res.status(OK).send({ data: cards }))
-    .catch((err) => {
-      res.status(INTERNAL_SERVER_ERROR).send(
-        { message: `Ошибка при получении данных от сервера: ${err.message}` },
-      );
-    });
+    .catch(next);
 };
 
 // POST /cards — создаёт карточку
-module.exports.createCard = (req, res) => {
+module.exports.createCard = (req, res, next) => {
   const { name, link } = req.body;
   Card.create({ name, link, owner: req.user._id })
     .then((card) => res.status(CREATED).send({ data: card }))
-    .catch((err) => {
-      if (err.name === 'ValidationError') {
-        res.status(BAD_REQUEST).send(
-          { message: `Переданы некорректные данные: ${err.message}` },
-        );
-      } else {
-        res.status(INTERNAL_SERVER_ERROR).send(
-          { message: `Ошибка при получении данных от сервера: ${err.message}` },
-        );
-      }
-    });
+    .catch(next);
 };
 
 // DELETE /cards/:cardId — удаляет карточку по идентификатору
-module.exports.deleteCard = (req, res) => {
-  Card.findByIdAndRemove(req.params.cardId)
+module.exports.deleteCard = (req, res, next) => {
+  Card.findById(req.params.cardId)
     .orFail(() => {
       throw new DataNotFoundError('Запрашиваемая карточка не найдена');
     })
-    .then((card) => res.status(OK).send({ data: card, message: 'Карточка успешно удалена' }))
-    .catch((err) => {
-      if (err.name === 'DataNotFoundError') {
-        res.status(err.statusCode).send(
-          { message: err.message },
-        );
-      } else if (err.name === 'CastError') {
-        res.status(BAD_REQUEST).send(
-          { message: `Переданы некорректные данные: ${err.message}` },
-        );
-      } else {
-        res.status(INTERNAL_SERVER_ERROR).send(
-          { message: `Ошибка при получении данных от сервера: ${err.message}` },
-        );
+    .then((card) => {
+      const owner = card.owner.toString();
+      // console.log(owner);
+      if (req.user._id !== owner) {
+        throw new ForbiddenError('Нет доступа к удалению карточки');
       }
-    });
+      Card.remove(card).then(() => res.status(OK).send({ card }));
+    })
+    .catch(next);
 };
 
 // PUT /cards/:cardId/likes — поставить лайк карточке
-module.exports.likeCard = (req, res) => {
+module.exports.likeCard = (req, res, next) => {
   Card.findByIdAndUpdate(
     req.params.cardId,
     { $addToSet: { likes: req.user._id } }, // добавить _id в массив, если его там нет
@@ -68,25 +45,12 @@ module.exports.likeCard = (req, res) => {
     .orFail(() => {
       throw new DataNotFoundError('Запрашиваемая карточка не найдена');
     })
-    .populate('owner')
     .then((card) => res.status(OK).send({ data: card }))
-    .catch((err) => {
-      if (err.name === 'DataNotFoundError') {
-        res.status(err.statusCode).send({ message: err.message });
-      } else if (err.name === 'CastError') {
-        res.status(BAD_REQUEST).send(
-          { message: `Переданы некорректные данные: ${err.message}` },
-        );
-      } else {
-        res.status(INTERNAL_SERVER_ERROR).send(
-          { message: `Ошибка при получении данных от сервера: ${err.message}` },
-        );
-      }
-    });
+    .catch(next);
 };
 
 // DELETE /cards/:cardId/likes — убрать лайк с карточки
-module.exports.dislikeCard = (req, res) => {
+module.exports.dislikeCard = (req, res, next) => {
   Card.findByIdAndUpdate(
     req.params.cardId,
     { $pull: { likes: req.user._id } }, // убрать _id из массива
@@ -95,19 +59,6 @@ module.exports.dislikeCard = (req, res) => {
     .orFail(() => {
       throw new DataNotFoundError('Запрашиваемая карточка не найдена');
     })
-    .populate(['owner', 'likes'])
     .then((card) => res.status(OK).send({ data: card }))
-    .catch((err) => {
-      if (err.name === 'DataNotFoundError') {
-        res.status(err.statusCode).send({ message: err.message });
-      } else if (err.name === 'CastError') {
-        res.status(BAD_REQUEST).send(
-          { message: `Переданы некорректные данные: ${err.message}` },
-        );
-      } else {
-        res.status(INTERNAL_SERVER_ERROR).send(
-          { message: `Ошибка при получении данных от сервера: ${err.message}` },
-        );
-      }
-    });
+    .catch(next);
 };

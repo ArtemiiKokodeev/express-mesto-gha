@@ -1,67 +1,90 @@
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 const User = require('../models/user');
 const DataNotFoundError = require('../errors/DataNotFoundError');
-const {
-  OK, CREATED, BAD_REQUEST, INTERNAL_SERVER_ERROR,
-} = require('../utils/constants');
+const UnauthorizedError = require('../errors/UnauthorizedError');
+const { OK, CREATED } = require('../utils/constants');
 
 // GET /users — возвращает всех пользователей
-module.exports.getUsers = (req, res) => {
+module.exports.getUsers = (req, res, next) => {
   User.find({})
     .then((users) => res.status(OK).send({ data: users }))
-    .catch((err) => {
-      res.status(INTERNAL_SERVER_ERROR).send(
-        { message: `Ошибка при получении данных от сервера: ${err.message}` },
-      );
-    });
+    .catch(next);
 };
 
 // GET /users/:userId - возвращает пользователя по _id
-module.exports.getUserById = (req, res) => {
+module.exports.getUserById = (req, res, next) => {
   User.findById(req.params.userId)
     .orFail(() => {
       throw new DataNotFoundError('Запрашиваемый пользователь не найден');
     })
     .then((user) => res.status(OK).send({ data: user }))
-    .catch((err) => {
-      if (err.name === 'DataNotFoundError') {
-        res.status(err.statusCode).send({ message: err.message });
-      } else if (err.name === 'CastError') {
-        res.status(BAD_REQUEST).send(
-          { message: `Переданы некорректные данные: ${err.message}` },
-        );
-      } else {
-        res.status(INTERNAL_SERVER_ERROR).send(
-          { message: `Ошибка при получении данных от сервера: ${err.message}` },
-        );
-      }
-    });
+    .catch(next);
 };
 
-// POST /users — создаёт пользователя
-module.exports.createUser = (req, res) => {
-  const { name, about, avatar } = req.body;
-  User.create({ name, about, avatar })
+// GET /users/me - возвращает текущего пользователя
+module.exports.getCurrentUser = (req, res, next) => {
+  const { authorization } = req.headers;
+
+  if (!authorization || !authorization.startsWith('Bearer')) {
+    throw new UnauthorizedError('Необходима авторизация');
+  }
+
+  const token = authorization.replace('Bearer ', '');
+  let payload;
+
+  try {
+    payload = jwt.verify(token, 'some-secret-key');
+  } catch (err) {
+    throw new UnauthorizedError('Необходима авторизация');
+  }
+
+  User.findById(payload._id)
+    .orFail(() => {
+      throw new DataNotFoundError('Запрашиваемый пользователь не найден');
+    })
+    .then((user) => res.send(user))
+    .catch(next);
+};
+
+// POST /signup — создаёт пользователя (регистрация)
+module.exports.createUser = (req, res, next) => {
+  const {
+    email, password, name, about, avatar,
+  } = req.body;
+
+  bcrypt.hash(password, 10)
+    .then((hash) => User.create({
+      email, password: hash, name, about, avatar,
+    }))
     .then((user) => res.status(CREATED).send({ data: user }))
-    .catch((err) => {
-      if (err.name === 'ValidationError') {
-        res.status(BAD_REQUEST).send(
-          { message: `Переданы некорректные данные: ${err.message}` },
-        );
-      } else {
-        res.status(INTERNAL_SERVER_ERROR).send(
-          { message: `Ошибка при получении данных от сервера: ${err.message}` },
-        );
+    .catch(next);
+};
+
+// POST /signin — авторизация пользователя
+module.exports.login = (req, res, next) => {
+  const { email, password } = req.body;
+  User.findOne({ email }).select('+password')
+    .orFail(() => {
+      throw new UnauthorizedError('Неправильная почта и пароль');
+    })
+    .then((user) => bcrypt.compare(password, user.password).then((matched) => {
+      if (matched) {
+        return user;
       }
-    });
+      throw new UnauthorizedError('Неправильная почта и пароль');
+    }))
+    .then((user) => {
+      const token = jwt.sign({ _id: user._id }, 'some-secret-key', { expiresIn: '7d' });
+      res.send({ user, token });
+    })
+    .catch(next);
 };
 
 // PATCH /users/me — обновляет профиль
-module.exports.updateUserInfo = (req, res) => {
+module.exports.updateUserInfo = (req, res, next) => {
   const { name, about } = req.body;
-  if (!name || !about) {
-    res.status(BAD_REQUEST).send({ message: 'Данные переданы некорректно' });
-    return;
-  }
+
   User.findByIdAndUpdate(
     req.user._id,
     { name, about },
@@ -71,28 +94,13 @@ module.exports.updateUserInfo = (req, res) => {
       throw new DataNotFoundError('Запрашиваемый пользователь не найден');
     })
     .then((user) => res.status(OK).send({ data: user }))
-    .catch((err) => {
-      if (err.name === 'DataNotFoundError') {
-        res.status(err.status).send({ message: err.message });
-      } else if (err.name === 'ValidationError') {
-        res.status(BAD_REQUEST).send(
-          { message: `Данные переданы некорректно: ${err.message}` },
-        );
-      } else {
-        res.status(INTERNAL_SERVER_ERROR).send(
-          { message: `Ошибка при получении данных от сервера: ${err.message}` },
-        );
-      }
-    });
+    .catch(next);
 };
 
 // PATCH /users/me/avatar — обновляет аватар
-module.exports.updateUserAvatar = (req, res) => {
+module.exports.updateUserAvatar = (req, res, next) => {
   const { avatar } = req.body;
-  if (!avatar) {
-    res.status(BAD_REQUEST).send({ message: 'Данные переданы некорректно' });
-    return;
-  }
+
   User.findByIdAndUpdate(
     req.user._id,
     { avatar },
@@ -102,17 +110,5 @@ module.exports.updateUserAvatar = (req, res) => {
       throw new DataNotFoundError('Запрашиваемый пользователь не найден');
     })
     .then((user) => res.status(OK).send({ data: user }))
-    .catch((err) => {
-      if (err.name === 'DataNotFoundError') {
-        res.status(err.status).send({ message: err.message });
-      } else if (err.name === 'ValidationError') {
-        res.status(BAD_REQUEST).send(
-          { message: `Переданы некорректные данные: ${err.message}` },
-        );
-      } else {
-        res.status(INTERNAL_SERVER_ERROR).send(
-          { message: `Ошибка при получении данных от сервера: ${err.message}` },
-        );
-      }
-    });
+    .catch(next);
 };
