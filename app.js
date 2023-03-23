@@ -7,13 +7,12 @@ const { errors } = require('celebrate');
 const { createUserJoiValidation, loginJoiValidation } = require('./middlewares/userJoiValidation');
 const auth = require('./middlewares/auth');
 const errorHandler = require('./middlewares/errorhandler');
+const DataNotFoundError = require('./errors/DataNotFoundError');
 const usersRouter = require('./routes/users');
 const cardsRouter = require('./routes/cards');
 const { createUser, login } = require('./controllers/users');
 
 mongoose.set('strictQuery', false);
-
-const { NOT_FOUND } = require('./utils/constants');
 
 const { PORT = 3000 } = process.env;
 
@@ -34,14 +33,10 @@ app.use('/users', auth, usersRouter);
 app.use('/cards', auth, cardsRouter);
 
 app.use(errors());
+app.use((req, res, next) => next(new DataNotFoundError('Данной страницы не существует')));
 app.use(errorHandler);
-
-app.use((req, res, next) => {
-  res.status(NOT_FOUND).send({ message: 'Данной страницы не существует' });
-  next();
-});
 
 app.listen(PORT, () => {
   // Если всё работает, консоль покажет, какой порт приложение слушает
-  console.log(`App listening on port ${PORT}`);
+  // console.log(`App listening on port ${PORT}`);
 });

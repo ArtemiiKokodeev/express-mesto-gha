@@ -6,6 +6,7 @@ const { OK, CREATED } = require('../utils/constants');
 // GET /cards — возвращает все карточки
 module.exports.getCards = (req, res, next) => {
   Card.find({})
+    .populate(['owner', 'likes'])
     .then((cards) => res.status(OK).send({ data: cards }))
     .catch(next);
 };
@@ -30,7 +31,9 @@ module.exports.deleteCard = (req, res, next) => {
       if (req.user._id !== owner) {
         throw new ForbiddenError('Нет доступа к удалению карточки');
       }
-      Card.remove(card).then(() => res.status(OK).send({ card }));
+      Card.remove(card)
+        .then(() => res.status(OK).send({ card }))
+        .catch(next);
     })
     .catch(next);
 };
@@ -45,6 +48,7 @@ module.exports.likeCard = (req, res, next) => {
     .orFail(() => {
       throw new DataNotFoundError('Запрашиваемая карточка не найдена');
     })
+    .populate(['owner', 'likes'])
     .then((card) => res.status(OK).send({ data: card }))
     .catch(next);
 };
@@ -59,6 +63,7 @@ module.exports.dislikeCard = (req, res, next) => {
     .orFail(() => {
       throw new DataNotFoundError('Запрашиваемая карточка не найдена');
     })
+    .populate(['owner', 'likes'])
     .then((card) => res.status(OK).send({ data: card }))
     .catch(next);
 };

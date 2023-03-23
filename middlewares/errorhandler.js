@@ -1,5 +1,5 @@
 const {
-  BAD_REQUEST, FORBIDDEN, NOT_UNIQUE, INTERNAL_SERVER_ERROR,
+  UNAUTHORIZED, BAD_REQUEST, FORBIDDEN, NOT_FOUND, NOT_UNIQUE, INTERNAL_SERVER_ERROR,
 } = require('../utils/constants');
 
 const errorHandler = (err, req, res, next) => {
@@ -8,17 +8,17 @@ const errorHandler = (err, req, res, next) => {
       { message: `Пользователь с такими данными уже существует: ${err.message}` },
     );
     return;
-  } if (err.name === 'UnauthorizedError') {
+  } if (err.statusCode === UNAUTHORIZED) {
     res.status(err.statusCode).send(
       { message: err.message },
     );
     return;
-  } if (err.name === 'DataNotFoundError') {
+  } if (err.statusCode === NOT_FOUND) {
     res.status(err.statusCode).send(
       { message: err.message },
     );
     return;
-  } if (err.name === 'DataValidationError') {
+  } if (err.statusCode === BAD_REQUEST) {
     res.status(err.statusCode).send(
       { message: err.message },
     );
@@ -33,17 +33,16 @@ const errorHandler = (err, req, res, next) => {
       { message: `Переданы некорректные данные: ${err.message}` },
     );
     return;
-  } if (err.name === 'ForbiddenError') {
-    res.status(FORBIDDEN).send(
+  } if (err.statusCode === FORBIDDEN) {
+    res.status(err.statusCode).send(
       { message: err.message },
     );
     return;
-  } if (err.code === 500) {
-    res.status(INTERNAL_SERVER_ERROR).send(
-      { message: `Ошибка при получении данных от сервера: ${err.message}` },
-    );
-    return;
   }
+
+  res.status(INTERNAL_SERVER_ERROR).send(
+    { message: `Ошибка при получении данных от сервера: ${err.message}` },
+  );
 
   next();
 };

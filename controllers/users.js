@@ -24,22 +24,7 @@ module.exports.getUserById = (req, res, next) => {
 
 // GET /users/me - возвращает текущего пользователя
 module.exports.getCurrentUser = (req, res, next) => {
-  const { authorization } = req.headers;
-
-  if (!authorization || !authorization.startsWith('Bearer')) {
-    throw new UnauthorizedError('Необходима авторизация');
-  }
-
-  const token = authorization.replace('Bearer ', '');
-  let payload;
-
-  try {
-    payload = jwt.verify(token, 'some-secret-key');
-  } catch (err) {
-    throw new UnauthorizedError('Необходима авторизация');
-  }
-
-  User.findById(payload._id)
+  User.findById(req.user._id)
     .orFail(() => {
       throw new DataNotFoundError('Запрашиваемый пользователь не найден');
     })

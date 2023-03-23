@@ -14,6 +14,6 @@ module.exports.createCardJoiValidation = celebrate({
 // проверка _id при удалении карточки, установке или снятии лайка
 module.exports.cardIdJoiValidation = celebrate({
   params: Joi.object().keys({
-    cardId: Joi.string().required().min(24).max(24),
+    cardId: Joi.string().required().hex().length(24),
   }),
 });
